@@ -1,6 +1,3 @@
-### Project
----
-
 ## Struckture
 - check-docker-vulnerability
 - docker_check_image_vulnerability
