@@ -8,7 +8,7 @@ from datetime import datetime
 
 class SecretScanner:
     def __init__(self):
-        # Definicje wzorców dla różnych typów sekretów
+        # Patterns for different types of secrets
         self.patterns = {
             'aws_access_key': r'AKIA[0-9A-Z]{16}',
             'aws_secret_key': r'[0-9a-zA-Z/+]{40}',
@@ -21,17 +21,17 @@ class SecretScanner:
             'jwt_token': r'eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*',
         }
         
-        # Lista rozszerzeń plików do pominięcia
+        # List of file extensions to skip
         self.exclude_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', 
                                  '.mp3', '.mp4', '.avi', '.mov', '.pdf', '.zip', 
                                  '.tar', '.gz', '.7z', '.pyc', '.class', '.o', '.so'}
         
-        # Lista katalogów do pominięcia
+        # List of directories to skip
         self.exclude_dirs = {'.git', 'node_modules', 'venv', '.env', '__pycache__', 
                            'build', 'dist', '.idea', '.vscode'}
 
     def is_binary(self, file_path: str) -> bool:
-        """Sprawdza czy plik jest binarny."""
+        """Checks if the file is binary."""
         try:
             with open(file_path, 'tr') as check_file:
                 check_file.read(1024)
@@ -40,7 +40,7 @@ class SecretScanner:
             return True
 
     def should_skip_file(self, file_path: str) -> bool:
-        """Sprawdza czy plik powinien być pominięty."""
+        """Checks if the file should be skipped."""
         file_extension = os.path.splitext(file_path)[1].lower()
         if file_extension in self.exclude_extensions:
             return True
@@ -49,7 +49,7 @@ class SecretScanner:
         return any(part in self.exclude_dirs for part in path_parts)
 
     def scan_file(self, file_path: str) -> Dict[str, List[str]]:
-        """Skanuje pojedynczy plik w poszukiwaniu sekretów."""
+        """Scans a single file for secrets."""
         if self.should_skip_file(file_path) or self.is_binary(file_path):
             return {}
 
@@ -64,18 +64,18 @@ class SecretScanner:
                     line_number = content.count('\n', 0, match.start()) + 1
                     if secret_type not in findings:
                         findings[secret_type] = []
-                    findings[secret_type].append(f"Linia {line_number}: {match.group()}")
+                    findings[secret_type].append(f"Line {line_number}: {match.group()}")
         except Exception as e:
-            print(f"Błąd podczas skanowania pliku {file_path}: {str(e)}")
+            print(f"Error while scanning file {file_path}: {str(e)}")
             
         return findings
 
     def scan_directory(self, directory: str) -> Dict[str, Dict[str, List[str]]]:
-        """Skanuje całe repozytorium rekurencyjnie."""
+        """Scans the entire repository recursively."""
         all_findings = {}
         
         for root, dirs, files in os.walk(directory):
-            # Pomijamy wykluczone katalogi
+            # Skip excluded directories
             dirs[:] = [d for d in dirs if d not in self.exclude_dirs]
             
             for file in files:
@@ -89,11 +89,11 @@ class SecretScanner:
         return all_findings
 
     def print_console_summary(self, findings: Dict[str, Dict[str, List[str]]]):
-        """Wyświetla przejrzyste podsumowanie w konsoli."""
+        """Displays a clear summary in the console."""
         total_files = len(findings)
         total_secrets = sum(len(secrets) for file_findings in findings.values() for secrets in file_findings.values())
         
-        # Liczenie sekretów według typu
+        # Counting secrets by type
         secret_type_counts = {}
         files_per_type = {}
         for file_findings in findings.values():
@@ -105,37 +105,37 @@ class SecretScanner:
                 files_per_type[secret_type] += 1
         
         print("\n" + "="*60)
-        print(f"RAPORT SKANOWANIA SEKRETÓW")
+        print(f"SECRETS SCANNING REPORT")
         print("="*60)
-        print(f"Data skanowania: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Liczba przeskanowanych plików z sekretami: {total_files}")
-        print(f"Całkowita liczba znalezionych sekretów: {total_secrets}")
-        print("\nPODSUMOWANIE WEDŁUG TYPU:")
+        print(f"Scan date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Number of scanned files with secrets: {total_files}")
+        print(f"Total number of secrets found: {total_secrets}")
+        print("\nSUMMARY BY TYPE:")
         for secret_type in sorted(secret_type_counts.keys()):
             print(f"- {secret_type}:")
-            print(f"  * Znaleziono w {files_per_type[secret_type]} plikach")
-            print(f"  * Liczba wystąpień: {secret_type_counts[secret_type]}")
+            print(f"  * Found in {files_per_type[secret_type]} files")
+            print(f"  * Number of occurrences: {secret_type_counts[secret_type]}")
         print("-"*60)
         
         if findings:
             for file_path, file_findings in findings.items():
-                print(f"\nPlik: {file_path}")
+                print(f"\nFile: {file_path}")
                 for secret_type, matches in file_findings.items():
                     print(f"  {secret_type}:")
                     for match in matches:
                         print(f"    - {match}")
                 print("-"*40)
         else:
-            print("\nNie znaleziono żadnych sekretów.")
+            print("\nNo secrets found.")
         
         print("="*60)
 
     def generate_report(self, findings: Dict[str, Dict[str, List[str]]], output_file: str):
-        """Generuje raporty w formacie JSON i HTML oraz wyświetla podsumowanie w konsoli."""
-        # Wyświetl podsumowanie w konsoli
+        """Generates reports in JSON and HTML formats and displays console summary."""
+        # Display console summary
         self.print_console_summary(findings)
         
-        # Generowanie raportu JSON
+        # Generate JSON report
         report = {
             'scan_date': datetime.now().isoformat(),
             'total_files_with_secrets': len(findings),
@@ -145,24 +145,24 @@ class SecretScanner:
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
             
-        # Generowanie raportu HTML
+        # Generate HTML report
         html_output = output_file.replace('.json', '.html')
         html_content = self._generate_html_report(findings)
         with open(html_output, 'w', encoding='utf-8') as f:
             f.write(html_content)
         
-        print(f"\nRaporty zostały zapisane do:")
+        print(f"\nReports have been saved to:")
         print(f"- JSON: {output_file}")
         print(f"- HTML: {html_output}")
 
     def _generate_html_report(self, findings: Dict[str, Dict[str, List[str]]]) -> str:
-        """Generuje raport HTML."""
+        """Generates HTML report."""
         html = f"""
         <!DOCTYPE html>
-        <html lang="pl">
+        <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <title>Raport Skanowania Sekretów</title>
+            <title>Secrets Scanning Report</title>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }}
                 .container {{ max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
@@ -176,11 +176,11 @@ class SecretScanner:
         </head>
         <body>
             <div class="container">
-                <h1>Raport Skanowania Sekretów</h1>
+                <h1>Secrets Scanning Report</h1>
                 <div class="summary">
-                    <h2>Podsumowanie</h2>
-                    <p>Data skanowania: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                    <p>Liczba plików z sekretami: {len(findings)}</p>
+                    <h2>Summary</h2>
+                    <p>Scan date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                    <p>Number of files with secrets: {len(findings)}</p>
                 </div>
         """
         
@@ -212,15 +212,15 @@ class SecretScanner:
         return html
 
 def main():
-    parser = argparse.ArgumentParser(description='Skaner sekretów w repozytorium')
-    parser.add_argument('path', help='Ścieżka do przeskanowania')
+    parser = argparse.ArgumentParser(description='Repository secrets scanner')
+    parser.add_argument('path', help='Path to scan')
     parser.add_argument('--output', '-o', default='secret_scan_report.json',
-                       help='Ścieżka do pliku wyjściowego (domyślnie: secret_scan_report.json)')
+                       help='Output file path (default: secret_scan_report.json)')
     
     args = parser.parse_args()
     
     scanner = SecretScanner()
-    print(f"Rozpoczynam skanowanie: {args.path}")
+    print(f"Starting scan: {args.path}")
     
     findings = scanner.scan_directory(args.path)
     scanner.generate_report(findings, args.output)
