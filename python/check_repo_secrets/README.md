@@ -111,4 +111,4 @@ The scanner detects various types of secrets including:
 
 ## License
 
-[MIT License](LICENSE)
+MIT License
